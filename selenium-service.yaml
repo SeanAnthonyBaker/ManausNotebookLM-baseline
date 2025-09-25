@@ -1,0 +1,17 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: selenium
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    spec:
+      containers:
+        - image: selenium
+          ports:
+            - containerPort: 4444
+            - containerPort: 7900
+          env:
+            - name: CHROME_PROFILE_GCS_PATH
+              value: "REPLACE_WITH_GCS_PATH_TO_CHROME_PROFILE"

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NotebookLM Automation API</title>
+    <meta name="description" content="A web interface for the NotebookLM Automation API, allowing users to control a headless Chrome browser to interact with Google NotebookLM.">
+    <link rel="preconnect" href="/api" crossorigin>
+    <link rel="stylesheet" href="dist/style.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 NotebookLM Automation API</h1>
+        <p style="text-align: center; color: #666; margin-bottom: 30px;">
+            Selenium-based automation for Google NotebookLM with Docker container support
+        </p>
+
+        <!-- Status Check -->
+        <div class="section">
+            <h2>📊 Browser Status</h2>
+            <div class="endpoint-info">
+                <strong>GET /api/status</strong> - Check the current status of the browser instance
+            </div>
+            <button class="status-button" onclick="checkStatus()" aria-label="Check browser status">Check Status</button>
+            <pre id="status-result"></pre>
+        </div>
+
+        <!-- Open NotebookLM -->
+        <div class="section">
+            <h2>🚀 Open NotebookLM</h2>
+            <div class="endpoint-info">
+                <strong>POST /api/open_notebooklm</strong> - Opens a specific NotebookLM in headless Chrome browser
+            </div>
+            <label for="notebooklm-url">NotebookLM URL:</label>
+            <input type="url" id="notebooklm-url" name="notebooklm_url" 
+                   placeholder="https://notebooklm.google.com/notebook/..." 
+                   value="https://notebooklm.google.com/">
+            <button onclick="openNotebookLM()" aria-label="Open NotebookLM">Open NotebookLM</button>
+            <pre id="open-result"></pre>
+        </div>
+
+        <!-- Query NotebookLM -->
+        <div class="section">
+            <h2>💬 Query NotebookLM</h2>
+            <div class="endpoint-info">
+                <strong>POST /api/query_notebooklm</strong> - Submits a query and waits for complete response (30-60 seconds)
+            </div>
+            <label for="query-text">Your Question:</label>
+            <textarea id="query-text" name="query" 
+                      placeholder="Enter your question for NotebookLM here...">What are the main topics covered in the uploaded documents?</textarea>
+            <button onclick="queryNotebookLM()" aria-label="Submit query to NotebookLM">Submit Query</button>
+            <pre id="query-result"></pre>
+        </div>
+
+        <!-- Close Browser -->
+        <div class="section">
+            <h2>🔒 Close Browser</h2>
+            <div class="endpoint-info">
+                <strong>POST /api/close_browser</strong> - Closes the Chrome driver and cleans up resources
+            </div>
+            <button class="close-button" onclick="closeBrowser()" aria-label="Close browser instance">Close Browser</button>
+            <pre id="close-result"></pre>
+        </div>
+
+        <!-- API Documentation -->
+        <div class="section">
+            <h2>📚 API Documentation</h2>
+            <h3>Endpoint Overview:</h3>
+            <ul>
+                <li><strong>/api/status</strong> - GET - Check browser status</li>
+                <li><strong>/api/open_notebooklm</strong> - POST - Open specific NotebookLM</li>
+                <li><strong>/api/query_notebooklm</strong> - POST - Submit query and get response</li>
+                <li><strong>/api/close_browser</strong> - POST - Close browser instance</li>
+            </ul>
+            
+            <h3>Usage Flow:</h3>
+            <ol>
+                <li>Check status to see if browser is already running</li>
+                <li>Open NotebookLM with a specific URL</li>
+                <li>Submit queries and wait for responses</li>
+                <li>Close browser when done</li>
+            </ol>
+
+            <h3>Features:</h3>
+            <ul>
+                <li>✅ Bypasses Google automation detection</li>
+                <li>✅ Waits for dynamic content generation to complete</li>
+                <li>✅ Automatically finds and clicks copy buttons</li>
+                <li>✅ Returns extracted response content</li>
+                <li>✅ Handles authentication redirects</li>
+                <li>✅ Thread-safe browser management</li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="dist/script.min.js"></script>
+</body>
+</html>

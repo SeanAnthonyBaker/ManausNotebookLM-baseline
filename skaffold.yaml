@@ -1,0 +1,21 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+metadata:
+  name: manaus-notebook-lm
+deploy:
+  googleCloudRun:
+    projectid: 791332248055
+    region: europe-west2
+    manifests:
+      - app-service.yaml
+      - selenium-service.yaml
+build:
+  artifacts:
+    - image: app
+      context: .
+      docker:
+        dockerfile: Dockerfile
+    - image: selenium
+      context: .
+      docker:
+        dockerfile: Dockerfile.selenium

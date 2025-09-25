@@ -1,0 +1,29 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: app
+  annotations:
+    run.googleapis.com/launch-stage: BETA
+spec:
+  template:
+    spec:
+      containers:
+        - image: app
+          ports:
+            - containerPort: 5000
+          env:
+            - name: SELENIUM_HUB_URL
+              value: "REPLACE_WITH_SELENIUM_URL"
+            - name: FLASK_ENV
+              value: "production"
+            - name: CHROME_USER_AGENT
+              value: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/138.0.7204.157 Safari/537.36"
+            - name: NOTEBOOKLM_BASE_URL
+              value: "https://notebooklm.google.com/"
+            - name: NOTEBOOKLM_INITIAL_URL
+              value: "https://notebooklm.google.com/"
+            - name: FLASK_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: flask-secret-key
+                  key: "1"

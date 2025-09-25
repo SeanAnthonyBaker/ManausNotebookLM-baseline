@@ -1,0 +1,53 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.tox/
+.coverage
+.coverage.*
+.cache/
+.mypy_cache/
+.pytest_cache/
+.hypothesis/
+
+# Virtual environment
+venv/
+.venv/
+ENV/
+env/
+.env
+
+# IDE and editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+*.log
+
+# Persistent data volumes
+# Ignore the local Chrome user profile data directory.
+# This directory contains sensitive session and cookie information.
+chrome-data/
+
+# Ignore Google Cloud credentials. This is critical for security.
+.gcloud/
+
+# Generated files
+response.md
+
+# Temporary files
+tmp/
+temp/
