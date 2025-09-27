@@ -98,9 +98,9 @@ fi
 echo "" # Newline for cleaner output
 echo "✅ All services are healthy and running!"
 echo "📋 Service URLs:"
-echo "   • Flask API: http://localhost:5000"
-echo "   • API Status: http://localhost:5000/api/status"
-echo "   • Selenium Hub: http://localhost:4444"
-echo "   • VNC Viewer: http://localhost:7900 (password: secret)"
+echo "   - Flask API: http://localhost:5000"
+echo "   - Selenium Hub: http://localhost:4444"
+echo "   - VNC Viewer (manual): http://localhost:7900 (password: secret)"
+echo "   - VNC Viewer (auto-connect): https://7900-firebase-manausnotebooklm-1758446235472.cluster-fbfjltn375c6wqxlhoehbz44sk.cloudworkstations.dev/vnc.html?password=secret"
 echo ""
 echo "💡 Note: To access these from your browser, use the preview URLs provided by Firebase Studio for each port."

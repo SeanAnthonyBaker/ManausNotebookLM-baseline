@@ -8,6 +8,7 @@ import sys
 import requests
 import time
 import json
+import argparse
 
 # Add the src directory to Python path
 # sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
@@ -29,7 +30,7 @@ def check_flask_app_import():
         print(f"❌ FAILED: Error during Flask app context check. Error: {e}")
         return False
 
-def run_api_tests():
+def run_api_tests(args):
     """Run tests against a live server, reporting all results."""
     base_url = "http://localhost:5000"
     successes = 0
@@ -71,70 +72,24 @@ def run_api_tests():
             failures += 1
             return None
 
-    # --- NotebookLM API Test Sequence ---
-    print("\n--- Step 1: Wait for Browser Initialization ---")
-    print("Waiting up to 45 seconds for the background browser to start...")
-    initialization_complete = False
-    for i in range(15):
-        time.sleep(3)
-        try:
-            status_res = requests.get(f"{base_url}/api/status", timeout=2).json()
-            if status_res.get('browser_active'):
-                print(f"\n✅ Browser is active! Status: {status_res.get('status')}")
-                initialization_complete = True
-                break
-            else:
-                print("   ... still waiting (browser_active is False)")
-        except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
-            print(f"   ... error checking status: {e}")
+    # --- Stateless API Test Sequence ---
+    print("\n--- Step 1: Test User API ---")
+    run_test(
+        "GET /api/users (initially empty)",
+        lambda: requests.get(f"{base_url}/api/users", timeout=5),
+        check_json=lambda data: isinstance(data, list) and len(data) == 0
+    )
 
-    if not initialization_complete:
-        print("❌ FAILED: Browser did not initialize in time. Cannot proceed with further tests.")
-        failures += 1
-    else:
-        # Check the status again to see if login is required
-        try:
-            final_status_res = requests.get(f"{base_url}/api/status", timeout=2).json()
-            if final_status_res.get('status') == 'authentication_required':
-                print("\n❌ ACTION REQUIRED: Browser needs manual login.")
-                print("   The browser inside the container has been redirected to a Google sign-in page.")
-                print("\n   To log in, you need to access the browser's graphical interface via VNC:")
-                print("\n   - In a local Docker environment:")
-                print("     1. Open this URL in your browser: http://localhost:7900 (password: secret)")
-                print("\n   - In a Firebase Studio workspace:")
-                print("     1. In the terminal panel at the bottom, click the 'Ports' tab.")
-                print("     2. Find port 7900 (VNC) and click the globe icon (🌐) to open its public URL.")
-                print("     3. In the new tab, click 'Connect' and use the password: secret")
-                print("\n   After connecting, manually complete the Google login process in the browser window that appears.")
-                print("   Once logged in, stop this test (Ctrl+C) and the services, then restart them. The session will be saved.")
-                failures += 1
-            else:
-                # Only run these tests if login is not required
-                successes += 1
-                print("\n--- Step 2: Get Page Title ---")
-                run_test(
-                    "GET /api/page_title",
-                    lambda: requests.get(f"{base_url}/api/page_title", timeout=10),
-                    check_json=lambda data: data.get('success') is True and 'page_title' in data
-                )
-
-                print("\n--- Step 3: Open NotebookLM URL ---")
-                run_test(
-                    "POST /api/open_notebooklm",
-                    lambda: requests.post(f"{base_url}/api/open_notebooklm", json={"notebooklm_url": "https://notebooklm.google.com/"}, timeout=45),
-                    check_json=lambda data: data.get('success') is True
-                )
-        except (requests.exceptions.RequestException, json.JSONDecodeError) as e:
-            print(f"❌ FAILED: Could not get final browser status. Error: {e}")
-            failures += 1
-
-    print("\n--- Step 4: Test Streaming Query ---")
-    print("▶️  Running: POST /api/query_notebooklm (streaming)")
+    print("\n--- Step 2: Test Streaming Query ---")
+    print("▶️  Running: POST /api/query (streaming)")
     try:
-        query_text = "What is the capital of France?"
+        query_text = args.query
+        # You can replace this with a specific notebook URL for more targeted testing
+        notebook_url_to_test = args.notebook_url
+
         with requests.post(
-            f"{base_url}/api/query_notebooklm",
-            json={"query": query_text},
+            f"{base_url}/api/query",
+            json={"query": query_text, "notebooklm_url": notebook_url_to_test},
             stream=True,
             timeout=180
         ) as r:
@@ -153,21 +108,6 @@ def run_api_tests():
     except Exception as e:
         print(f"❌ FAILED: Streaming query test failed. Error: {e}")
         failures += 1
-
-    print("\n--- Step 4: Close Browser ---")
-    run_test(
-        "POST /api/close_browser",
-        lambda: requests.post(f"{base_url}/api/close_browser", timeout=10),
-        check_json=lambda data: data.get('success') is True
-    )
-    
-    # --- User API Test Sequence ---
-    print("\n--- Step 5: Test User API ---")
-    run_test(
-        "GET /api/users (initially empty)",
-        lambda: requests.get(f"{base_url}/api/users", timeout=5),
-        check_json=lambda data: isinstance(data, list) and len(data) == 0
-    )
 
     print("-" * 50)
     print(f"Test Summary: {successes} passed, {failures} failed.")
@@ -210,11 +150,21 @@ This script can perform two actions:
    `python test_local.py --api`
 """)
 
+def get_args():
+    """Parses command-line arguments."""
+    parser = argparse.ArgumentParser(description="Local test script for NotebookLM Automation API.")
+    parser.add_argument('--api', action='store_true', help='Run the live API tests against a running server.')
+    parser.add_argument('--query', type=str, default="What is the capital of France?", help='The query to send for the streaming test.')
+    parser.add_argument('--notebook_url', type=str, default="https://notebooklm.google.com/", help='The NotebookLM URL to test against.')
+    return parser.parse_args()
+
 def main():
     """Main entry point for the test script."""
-    if "--api" in sys.argv:
+    args = get_args()
+
+    if args.api:
         # Run the live API tests
-        return run_api_tests()
+        return run_api_tests(args)
     else:
         # Run the basic import check and print instructions
         if not check_flask_app_import():

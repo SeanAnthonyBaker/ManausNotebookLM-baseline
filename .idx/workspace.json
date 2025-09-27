@@ -1,0 +1,21 @@
+{
+  "version": "1.0.0",
+  "preview": {
+    "server": {
+      "command": [
+        "bash",
+        "-c",
+        "echo 'Waiting for VNC service to be ready...' && ./start.sh && echo 'VNC service is ready. You can close this terminal.'"
+      ],
+      "manager": "web"
+    },
+    "previews": [
+      {
+        "id": "vnc-preview",
+        "port": 7900,
+        "label": "VNC Viewer",
+        "visibility": "public"
+      }
+    ]
+  }
+}
