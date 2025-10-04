@@ -21,9 +21,8 @@
     "dbaeumer.vscode-eslint"
   ];
 
-  # Disable previews since you are using start.sh
   idx.previews = {
-    enable = false;
+    enable = true;
   };
 
   # No specific workspace hooks needed for this setup

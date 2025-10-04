@@ -30,6 +30,33 @@ def check_flask_app_import():
         print(f"❌ FAILED: Error during Flask app context check. Error: {e}")
         return False
 
+def _test_streaming_query(base_url, args):
+    """
+    Performs the streaming query test.
+    This is a helper for run_api_tests to keep the streaming logic separate.
+    """
+    query_text = args.query
+    notebook_url_to_test = args.notebook_url
+
+    with requests.post(
+        f"{base_url}/api/query",
+        json={"query": query_text, "notebooklm_url": notebook_url_to_test},
+        stream=True,
+        timeout=180
+    ) as r:
+        r.raise_for_status()  # Will raise an HTTPError for bad responses (4xx or 5xx)
+        
+        full_response = ""
+        print("   Streaming response:", end='', flush=True)
+        for line in r.iter_lines():
+            if line.startswith(b'data:'):
+                data = json.loads(line.decode('utf-8').split('data: ', 1)[1])
+                if 'chunk' in data:
+                    print(data['chunk'], end='', flush=True)
+                    full_response += data['chunk']
+        print("\n   Stream finished.")
+    return full_response
+
 def run_api_tests(args):
     """Run tests against a live server, reporting all results."""
     base_url = "http://localhost:5000"
@@ -37,6 +64,17 @@ def run_api_tests(args):
     failures = 0
 
     print("🌐 Testing Live Server Endpoints...")
+
+    # --- Health Check ---
+    print("▶️  Running: Server Health Check...")
+    try:
+        health_response = requests.get(f"{base_url}/api/status", timeout=10)
+        health_response.raise_for_status()
+        print("✅ PASSED: Server is running.")
+    except requests.exceptions.RequestException as e:
+        print(f"❌ FAILED: Server is not responding at {base_url}. Please start the server first.")
+        print(f"   Error: {e}")
+        return False
 
     def run_test(name, test_func, expected_status=200, check_json=None):
         nonlocal successes, failures
@@ -72,42 +110,21 @@ def run_api_tests(args):
             failures += 1
             return None
 
-    # --- Stateless API Test Sequence ---
-    print("\n--- Step 1: Test User API ---")
+    # --- API Test Sequence ---
+    print("\n--- Testing User API ---")
     run_test(
         "GET /api/users (initially empty)",
         lambda: requests.get(f"{base_url}/api/users", timeout=5),
         check_json=lambda data: isinstance(data, list) and len(data) == 0
     )
 
-    print("\n--- Step 2: Test Streaming Query ---")
-    print("▶️  Running: POST /api/query (streaming)")
-    try:
-        query_text = args.query
-        # You can replace this with a specific notebook URL for more targeted testing
-        notebook_url_to_test = args.notebook_url
-
-        with requests.post(
-            f"{base_url}/api/query",
-            json={"query": query_text, "notebooklm_url": notebook_url_to_test},
-            stream=True,
-            timeout=180
-        ) as r:
-            if r.status_code != 200:
-                raise requests.exceptions.HTTPError(f"Expected 200, got {r.status_code}")
-            
-            full_response = ""
-            for line in r.iter_lines():
-                if line.startswith(b'data:'):
-                    data = json.loads(line.decode('utf-8').split('data: ', 1)[1])
-                    if 'chunk' in data:
-                        full_response += data['chunk']
-            print(f"   Received stream. Full response: '{full_response[:50]}...'")
-            print("✅ PASSED")
-            successes += 1
-    except Exception as e:
-        print(f"❌ FAILED: Streaming query test failed. Error: {e}")
-        failures += 1
+    print("\n--- Testing Stateless Query API ---")
+    run_test(
+        "POST /api/query (streaming)",
+        lambda: _test_streaming_query(base_url, args),
+        expected_status=200, # _test_streaming_query will raise for non-200
+        check_json=lambda data: isinstance(data, str) and len(data) > 0
+    )
 
     print("-" * 50)
     print(f"Test Summary: {successes} passed, {failures} failed.")
