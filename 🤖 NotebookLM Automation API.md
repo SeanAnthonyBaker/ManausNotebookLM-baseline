@@ -76,7 +76,7 @@ Content-Type: application/json
 
 ### 2. Query NotebookLM
 ```http
-POST /api/query_notebooklm
+POST /api/query
 Content-Type: application/json
 
 {
@@ -273,7 +273,7 @@ response = requests.post('http://localhost:5000/api/open_notebooklm',
 print(response.json())
 
 # Submit query
-response = requests.post('http://localhost:5000/api/query_notebooklm',
+response = requests.post('http://localhost:5000/api/query',
                         json={'query': 'Summarize the main points'})
 print(response.json())
 
@@ -295,7 +295,7 @@ const openResponse = await fetch('/api/open_notebooklm', {
 });
 
 // Submit query
-const queryResponse = await fetch('/api/query_notebooklm', {
+const queryResponse = await fetch('/api/query', {
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({ 
