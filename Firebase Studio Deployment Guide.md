@@ -1,263 +1,155 @@
 # Firebase Studio Deployment Guide
 
-## 🚀 Deploying NotebookLM Automation on Firebase Studio
+## 🚀 Deploying the NotebookLM Automation System in Firebase Studio
 
-This guide provides step-by-step instructions for deploying the NotebookLM Automation system on Google Firebase Studio.
+This guide provides step-by-step instructions for setting up and deploying the NotebookLM Automation system within a Google Firebase Studio workspace.
+
+The application consists of two main components:
+1.  **A Stateful User Management API**: A standard RESTful service for creating, reading, updating, and deleting user records, backed by a SQLite database.
+2.  **A Stateless NotebookLM Query API**: A service that uses Selenium to automate queries against the NotebookLM interface and streams the results back to the client.
 
 ## 📋 Prerequisites
 
-1. **Google Account** with access to Firebase Studio
-2. **Firebase Studio workspace** (free tier available)
-3. **Basic understanding** of Docker and REST APIs
+*   A Google Account with access to [Firebase Studio](https://firebase.studio/).
+*   A Firebase Studio workspace.
+*   A basic understanding of Flask, Docker, and REST APIs.
 
-## 🔧 Deployment Steps
+## 🔧 Environment Setup in Firebase Studio
 
-### Step 1: Import Project to Firebase Studio
+The project is designed to be set up automatically by Firebase Studio using the `.idx/dev.nix` configuration file. When you import the project, Firebase Studio will:
 
-1. **Open Firebase Studio**: https://firebase.studio/
-2. **Create New Workspace** or use existing one
-3. **Import from Git**:
-   - Use the repository URL
-   - Firebase Studio will automatically detect the `.idx/dev.nix` configuration
+1.  **Install Required Packages**: Automatically install `python3`, `pip`, and other necessary system-level dependencies defined in `dev.nix`.
+2.  **Install Python Dependencies**: Run `pip install -r requirements.txt` to install all the necessary Python libraries for the Flask application.
+3.  **Start Services**: Automatically run the startup commands defined in the `onStart` lifecycle hook, which typically involves starting the Selenium service and the Flask application.
 
-### Step 2: Automatic Environment Setup
+## 🚀 Running the Application
 
-Firebase Studio will automatically:
-- ✅ Install Python 3.11 and dependencies
-- ✅ Set up Docker and docker-compose
-- ✅ Configure VS Code extensions
-- ✅ Create virtual environment
-- ✅ Install Python packages from requirements.txt
+The application requires two services to be running simultaneously:
 
-### Step 3: Manual Configuration (if needed)
+1.  **Selenium Chrome Node**: A Docker container that provides a remote-controlled browser for the application to use.
+2.  **Flask Web Server**: The main Python application that serves the API endpoints.
 
-If automatic setup doesn't complete:
+These services are managed by `docker-compose.yml`. To start everything, run:
 
 ```bash
-# Install dependencies
-cd /workspace/notebooklm-automation
-python -m pip install -r requirements.txt
-
-# Make scripts executable
-chmod +x start.sh stop.sh
-
-# Create environment file
-cp .env.example .env
+docker-compose up --build
 ```
 
-### Step 4: Start Services
+This command will build the application's Docker image and start both the `app` (your Flask server) and the `selenium` service.
+
+## ✅ Testing the Deployment
+
+Once the services are running, you can test the different parts of the API.
+
+### 1. Test the User Management API (Stateful)
+
+You can use `curl` to interact with the user endpoints:
 
 ```bash
-# Start Docker services
-./start.sh
+# Create a new user
+curl -X POST -H "Content-Type: application/json" -d '{"username": "testuser", "email": "test@example.com"}' http://localhost:5000/api/users
 
-# Or manually with docker-compose
-docker-compose up --build -d
+# Get all users
+curl http://localhost:5000/api/users
 ```
 
-### Step 5: Test the Deployment
+### 2. Test the NotebookLM Query API (Stateless)
 
-1. **Check service status**:
-   ```bash
-   curl http://localhost:5000/api/status
-   ```
+This endpoint streams the response.
 
-2. **Open web interface**:
-   - Use Firebase Studio's preview feature
-   - Or access via the provided URL
+```bash
+# Send a query and get a streaming response
+curl -X POST -H "Content-Type: application/json" \
+     -d '{"query": "What is the capital of France?"}' \
+     http://localhost:5000/api/query
+```
 
-### Step 6: Deploy to Production
+### 3. Access the Web Interface
 
-#### Option A: Firebase App Hosting
+The project serves a static web interface. You can open it using Firebase Studio's preview feature, which will point to the root of the running application.
 
-1. **Configure for deployment**:
-   ```bash
-   # Update requirements.txt
-   pip freeze > requirements.txt
-   ```
+## ☁️ Deployment to Production (Google Cloud Run)
 
-2. **Deploy backend**:
-   - Use Firebase Studio's deployment panel
-   - Select "Deploy Backend"
-   - Choose Flask framework
+Deploying this application requires deploying both the Flask app and the Selenium service.
 
-#### Option B: Google Cloud Run
+### Step 1: Containerize the Application
 
-1. **Build container**:
-   ```bash
-   docker build -t gcr.io/your-project/notebooklm-automation .
-   ```
+The included `Dockerfile` and `docker-compose.yml` are already set up for containerization.
 
-2. **Push to registry**:
-   ```bash
-   docker push gcr.io/your-project/notebooklm-automation
-   ```
+### Step 2: Push Images to a Registry
 
-3. **Deploy to Cloud Run**:
-   - Use Firebase Studio's Cloud Run integration
-   - Configure environment variables
-   - Set up external access
+Push the application and Selenium images to a container registry like Google Artifact Registry.
 
-## 🔧 Firebase Studio Specific Configuration
+```bash
+# Authenticate with Google Cloud
+gcloud auth configure-docker
 
-### Nix Configuration (`.idx/dev.nix`)
+# Tag and push the app image
+docker tag notebooklm-app gcr.io/your-gcp-project-id/notebooklm-app:latest
+docker push gcr.io/your-gcp-project-id/notebooklm-app:latest
 
-The project includes a comprehensive Nix configuration:
+# Note: The Selenium image is public, so you don't need to push it yourself.
+```
+
+### Step 3: Deploy to Cloud Run
+
+1.  **Deploy the Selenium Service**:
+    *   Deploy the `selenium/standalone-chrome:latest` image as a private Cloud Run service.
+    *   Take note of the internal URL it is given (e.g., `selenium-service-xxxx.a.run.app`).
+
+2.  **Deploy the Flask Application**:
+    *   Deploy your `notebooklm-app` image to Cloud Run.
+    *   Set the `SELENIUM_HUB_URL` environment variable to point to your deployed Selenium service's URL (e.g., `http://selenium-service-xxxx.a.run.app/wd/hub`).
+    *   Ensure other environment variables like `FLASK_ENV=production` and `SECRET_KEY` are set.
+    *   This service should be configured to allow public access so users can reach your API.
+
+## 🔧 Firebase Studio `dev.nix` Configuration
+
+The `.idx/dev.nix` file is the heart of the environment's configuration.
 
 ```nix
-{
-  # Docker support
-  packages = [ pkgs.docker pkgs.docker-compose ];
-  
-  # Python environment
-  packages = [ pkgs.python311 ];
-  
-  # Preview configuration
-  idx.previews.web = {
-    command = ["python" "src/main.py"];
-    manager = "web";
+{ pkgs, ... }: {
+  # Use a stable channel for Nix packages
+  channel = "stable-23.11";
+
+  # Install Python and Pip
+  packages = [
+    pkgs.python311
+    pkgs.python311Packages.pip
+  ];
+
+  # Workspace lifecycle hooks
+  idx.workspace = {
+    # On workspace creation, install dependencies
+    onCreate = {
+      install-deps = "pip install -r requirements.txt";
+    };
+    # On workspace start, launch the services
+    onStart = {
+      start-services = "docker-compose up --build";
+    };
+  };
+
+  # Configure a web preview for the Flask app
+  idx.previews = {
+    enable = true;
+    previews = {
+      web = {
+        command = ["python" "main.py"];
+        manager = "web";
+      };
+    };
   };
 }
 ```
 
-### Workspace Automation
-
-Firebase Studio will automatically:
-- Install dependencies on workspace creation
-- Start Docker daemon
-- Pull required Docker images
-- Set up development environment
-
-## 🌐 External Access Configuration
-
-### For Development
-
-Firebase Studio provides automatic preview URLs:
-- **Web Interface**: Available via preview panel
-- **API Endpoints**: Accessible from external browsers
-- **WebSocket Support**: For real-time features
-
-### For Production
-
-1. **Enable external access**:
-   ```bash
-   # Ensure Flask listens on 0.0.0.0
-   app.run(host='0.0.0.0', port=5000)
-   ```
-
-2. **Configure CORS**:
-   ```python
-   from flask_cors import CORS
-   CORS(app)  # Already configured in the project
-   ```
-
-3. **Set up custom domain** (optional):
-   - Use Firebase Studio's domain configuration
-   - Configure DNS settings
-
 ## 🔒 Security Considerations
 
-### Firebase Studio Environment
-
-1. **No sudo access**: All configurations use Nix package manager
-2. **Sandboxed environment**: Containers run in isolated environment
-3. **Resource limits**: Respect Firebase Studio's resource quotas
-
-### Production Security
-
-1. **Environment variables**:
-   ```bash
-   # Set in Firebase Studio environment
-   FLASK_ENV=production
-   SECRET_KEY=your-secure-secret-key
-   ```
-
-2. **API rate limiting**:
-   - Implement rate limiting for production
-   - Use Firebase Studio's built-in protections
-
-3. **Authentication**:
-   - Add API key authentication if needed
-   - Integrate with Firebase Auth
-
-## 📊 Monitoring and Logging
-
-### Firebase Studio Monitoring
-
-1. **Built-in logs**: Available in Firebase Studio console
-2. **Performance monitoring**: Use Firebase Studio's monitoring tools
-3. **Error tracking**: Automatic error reporting
-
-### Custom Monitoring
-
-```python
-# Add to Flask app
-import logging
-logging.basicConfig(level=logging.INFO)
-
-@app.route('/health')
-def health_check():
-    return {'status': 'healthy', 'timestamp': time.time()}
-```
-
-## 🚀 Scaling Considerations
-
-### Firebase Studio Limits
-
-- **Workspace limits**: 3 free workspaces per user
-- **Resource limits**: CPU and memory constraints
-- **Network limits**: Bandwidth restrictions
-
-### Scaling Solutions
-
-1. **Upgrade to Premium**: More workspaces and resources
-2. **Deploy to Cloud Run**: Auto-scaling capabilities
-3. **Use Firebase App Hosting**: Integrated scaling
-
-## 🛠️ Troubleshooting
-
-### Common Firebase Studio Issues
-
-1. **Docker not starting**:
-   ```bash
-   sudo service docker start
-   ```
-
-2. **Permission issues**:
-   ```bash
-   # Check file permissions
-   ls -la start.sh
-   chmod +x start.sh
-   ```
-
-3. **Port conflicts**:
-   ```bash
-   # Check running services
-   netstat -tulpn | grep :5000
-   ```
-
-### Debug Mode
-
-Enable debug logging in Firebase Studio:
-```bash
-export FLASK_ENV=development
-export LOG_LEVEL=DEBUG
-python src/main.py
-```
-
-## 📞 Support
-
-For Firebase Studio specific issues:
-- **Firebase Studio Documentation**: https://firebase.google.com/docs/studio
-- **Community Forum**: Firebase Studio community
-- **Support Tickets**: Firebase Studio support
-
-For project-specific issues:
-- Check the main README.md
-- Review application logs
-- Test locally with Docker
+*   **Production Environment**: Always set `FLASK_ENV=production` in a production environment.
+*   **Secret Key**: Use a strong, unique `SECRET_KEY` for session management.
+*   **Database**: The default SQLite database is not recommended for a scalable production environment. Consider migrating to a managed database like Google Cloud SQL.
+*   **CORS**: The `flask_cors` extension is configured to allow all origins. For production, you should restrict this to your specific frontend domain.
 
 ---
 
-**Note**: Firebase Studio is in preview. Features and limitations may change. Always test thoroughly before production deployment.
-
+**Note**: This guide assumes a deployment target like Google Cloud Run that can run Docker containers. Adjust the deployment steps as needed for your chosen platform.

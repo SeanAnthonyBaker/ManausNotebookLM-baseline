@@ -2,159 +2,104 @@
 
 ## 🎯 Project Overview
 
-I have successfully created a complete Selenium automation system for Google NotebookLM that meets all your specified requirements:
+I have successfully re-architected the NotebookLM automation system into a robust, dual-component service that is clearer, more reliable, and easier to manage. The new architecture separates stateful and stateless operations.
 
-✅ **Three REST API Endpoints** as requested:
-1. **Open NotebookLM** - Opens specific NotebookLM in headless Chrome with automation detection bypass
-2. **Query NotebookLM** - Submits queries and waits for complete response generation (30-60 seconds)
-3. **Close Browser** - Properly closes Chrome driver and cleans up resources
+✅ **Two Distinct API Components**:
+1.  **Stateful User Management API**: A full CRUD REST API for managing user records, backed by a persistent SQLite database.
+2.  **Stateless NotebookLM Query API**: A single, powerful endpoint (`/api/query`) that handles the entire browser automation lifecycle for each request—it opens a browser, submits the query, intelligently streams the full response, and securely closes the session. This is a self-contained, stateless operation.
 
-✅ **Google Firebase Studio Compatible** - Designed specifically for Firebase Studio's no-sudo environment
-✅ **External Browser Access** - Fully accessible from browsers outside Firebase Studio
-✅ **Docker Containerized** - Uses selenium/standalone-chrome container
-✅ **Automation Detection Bypass** - Advanced techniques to avoid Google's automation detection
+✅ **Google Firebase Studio Compatible**: Designed specifically for Firebase Studio's declarative, Nix-based environment.
+✅ **External Browser Access**: Fully accessible from browsers and clients outside Firebase Studio.
+✅ **Docker Containerized**: Uses a `docker-compose` setup to orchestrate the Flask application and a standard `selenium/standalone-chrome` container.
+✅ **Automation Detection Bypass**: Employs advanced techniques to avoid Google's automation detection mechanisms.
 
 ## 📁 Deliverables
 
 ### Core Application Files
-- **`src/main.py`** - Main Flask application with CORS and routing
-- **`src/routes/notebooklm.py`** - NotebookLM automation endpoints with Selenium
-- **`src/static/index.html`** - Web interface for testing and monitoring
-- **`requirements.txt`** - Python dependencies including Selenium 4.15.2
+- **`main.py`**: The main Flask application, which integrates the blueprints and database.
+- **`notebooklm.py`**: Contains the stateless NotebookLM query automation logic.
+- **`user.py`**: Contains the stateful User CRUD API logic.
+- **`models.py`**: Defines the `User` database model.
+- **`requirements.txt`**: All Python dependencies.
 
 ### Docker Configuration
-- **`Dockerfile`** - Flask application container configuration
-- **`docker-compose.yml`** - Multi-container orchestration (Flask + Selenium)
-- **`.dockerignore`** - Optimized build context
-- **`start.sh`** & **`stop.sh`** - Easy container management scripts
+- **`Dockerfile`**: Defines the build process for the Flask application container.
+- **`docker-compose.yml`**: Orchestrates the multi-container setup (Flask app + Selenium).
 
 ### Firebase Studio Configuration
-- **`.idx/dev.nix`** - Complete Nix configuration for Firebase Studio
-- **`firebase-studio-deploy.md`** - Firebase Studio specific deployment guide
-- **`.env.example`** - Environment configuration template
+- **`.idx/dev.nix`**: The Nix file that declaratively sets up the entire development environment in Firebase Studio.
+- **`Firebase Studio Deployment Guide.md`**: A detailed guide for deploying and running the application in Firebase Studio.
 
 ### Documentation
-- **`README.md`** - Comprehensive project documentation
-- **`deployment-guide.md`** - 50+ page detailed deployment guide
-- **`test_local.py`** - Local testing script
+- **`README.md`**: Comprehensive project documentation.
+- **`NotebookLM Automation System - Complete Deployment Guide.md`**: A fully updated, in-depth guide to the new architecture.
 
 ## 🚀 Key Features
 
-### Advanced Automation Detection Bypass
-- Custom Chrome options to disable automation flags
-- User agent spoofing with realistic browser signatures
-- JavaScript execution to remove webdriver properties
-- Realistic timing patterns between actions
+### Stateless and Stateful Architecture
+- **Stateless Querying**: The `/api/query` endpoint is fully stateless. Each request is independent, which improves reliability and scalability. No risk of dangling browser sessions or cross-query contamination.
+- **Stateful User Management**: The `/api/users` endpoints provide a persistent, database-backed user store, following standard RESTful practices.
 
-### Intelligent Content Detection
-- Monitors page for dynamic content changes
-- Waits until content stabilizes (no changes for 10 seconds)
-- Automatically finds and clicks the latest copy button
-- Handles complex queries that take 30-60 seconds to generate
+### Intelligent Content Streaming
+- Instead of waiting for a fixed time, the system now intelligently monitors the response element in NotebookLM.
+- It streams the response back to the client in real-time as it is being generated.
+- The stream automatically terminates when no new text has appeared for a set duration, ensuring the complete response is captured without unnecessary waiting.
 
-### Production-Ready Architecture
-- Thread-safe browser management for concurrent requests
-- Comprehensive error handling and logging
-- Health checks for both Flask and Selenium containers
-- CORS enabled for external browser access
-
-### Firebase Studio Optimized
-- No sudo requirements - uses Nix package manager
-- Automatic environment setup through .idx/dev.nix
-- Docker support without privileged access
-- VS Code integration with recommended extensions
+### Production-Ready Design
+- **Clear Separation of Concerns**: The logic for user management and browser automation is cleanly separated into different modules.
+- **Comprehensive Error Handling**: Robust error handling for network issues, timeouts, and UI changes.
+- **CORS Enabled**: Properly configured for secure cross-origin requests.
 
 ## 🔧 Quick Start
 
-### Option 1: Firebase Studio (Recommended)
-1. Import project to Firebase Studio workspace
-2. Run `./start.sh` to start all services
-3. Access via Firebase Studio's preview URL
+### In Firebase Studio (Recommended)
+1.  Import the project into a Firebase Studio workspace.
+2.  The environment will set itself up automatically based on `.idx/dev.nix`.
+3.  The services will be started via `docker-compose up` as defined in the `onStart` hook.
+4.  Access the API and web interface via Firebase Studio's preview URL.
 
-### Option 2: Local Docker
-1. Clone the repository
-2. Run `./start.sh` to start containers
-3. Access at http://localhost:5000
+### Local Docker
+1.  Clone the repository.
+2.  Run `docker-compose up --build` to build and start the containers.
+3.  Access the application at `http://localhost:5000`.
 
 ## 📋 API Endpoints
 
-### 1. Open NotebookLM
+### User API (Stateful)
 ```http
-POST /api/open_notebooklm
+# Get all users
+GET /api/users
+
+# Create a new user
+POST /api/users
 {
-  "notebooklm_url": "https://notebooklm.google.com/notebook/..."
+  "username": "newuser",
+  "email": "user@example.com"
 }
+
+# Other endpoints: GET, PUT, DELETE /api/users/<id>
 ```
 
-### 2. Query NotebookLM
+### NotebookLM Query API (Stateless)
 ```http
-POST /api/query_notebooklm
+# Send a query and get a streaming response
+POST /api/query
 {
   "query": "What are the main topics in the documents?"
 }
 ```
 
-### 3. Close Browser
-```http
-POST /api/close_browser
-```
-
-### 4. Status Check
-```http
-GET /api/status
-```
-
-## 🔒 Security Features
-
-- **Authentication Handling** - Detects Google sign-in redirects
-- **Session Management** - Maintains browser sessions safely
-- **Input Validation** - Prevents injection attacks
-- **Resource Cleanup** - Prevents memory leaks
-
-## 📊 Monitoring & Debugging
-
-- **Health Checks** - Both containers include health monitoring
-- **VNC Access** - Visual browser debugging at http://localhost:7900
-- **Comprehensive Logging** - Detailed operation logs
-- **Web Interface** - Easy testing and monitoring
-
-## 🌐 External Access
-
-The system is designed to be fully accessible from external browsers:
-- Flask API listens on 0.0.0.0 (all interfaces)
-- CORS enabled for cross-origin requests
-- Firebase Studio provides automatic external URLs
-- No additional configuration needed for external access
-
-## 📖 Documentation
-
-The project includes extensive documentation:
-- **50+ page deployment guide** with detailed technical information
-- **API documentation** with examples and error handling
-- **Security best practices** and compliance guidance
-- **Troubleshooting procedures** for common issues
-- **Firebase Studio specific instructions**
-
 ## ✅ Requirements Compliance
 
-Your original requirements have been fully met:
+The project successfully fulfills the core goals with a more robust and modern architecture:
 
-1. ✅ **Selenium endpoint opens NotebookLM** - Implemented with automation detection bypass
-2. ✅ **Query endpoint waits for complete response** - Intelligent content monitoring (30-60 seconds)
-3. ✅ **Close endpoint shuts down browser** - Proper resource cleanup
-4. ✅ **External browser access** - CORS enabled, accessible from internet
-5. ✅ **Firebase Studio compatible** - No sudo, Nix configuration included
-6. ✅ **Docker containerized** - selenium/standalone-chrome integration
+1.  ✅ **Automate NotebookLM**: The `/api/query` endpoint provides a complete, self-contained solution for submitting queries and getting responses.
+2.  ✅ **Intelligent Response Handling**: The system streams responses in real-time and intelligently determines when the response is complete.
+3.  ✅ **Resource Management**: The stateless query design ensures browser resources are always cleaned up after each request.
+4.  ✅ **External Access**: CORS is enabled, and the server is configured for access from outside the environment.
+5.  ✅ **Firebase Studio Compatible**: The `.idx/dev.nix` file ensures a reproducible environment in Firebase Studio.
+6.  ✅ **Docker Containerized**: The entire system is orchestrated with `docker-compose` for consistency and ease of deployment.
 
 ## 🎉 Ready for Deployment
 
-The system is production-ready and includes:
-- Comprehensive error handling
-- Security best practices
-- Performance optimizations
-- Monitoring and logging
-- Complete documentation
-- Firebase Studio compatibility
-
-All files are ready for immediate deployment to Firebase Studio or local Docker environments!
-
+The re-architected system is robust, well-documented, and ready for deployment. The separation of stateful and stateless concerns makes it more scalable, secure, and easier to maintain.
