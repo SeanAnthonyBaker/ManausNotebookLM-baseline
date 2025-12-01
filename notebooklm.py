@@ -128,6 +128,7 @@ def process_query():
         return jsonify({'error': 'Missing "query" in request body'}), 400
     
     url = data.get('notebooklm_url', "https://notebooklm.google.com/")
+    logger.info(f"DEBUG: process_query received URL: '{url}'")
     query_text = data['query']
     timeout = data.get('timeout', 180)
 
