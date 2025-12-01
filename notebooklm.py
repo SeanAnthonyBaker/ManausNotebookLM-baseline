@@ -186,20 +186,24 @@ def process_query():
                 
                 for i in range(max_retries):
                     current_url = browser_instance.current_url
-                    # Check if we are on the target URL. 
-                    # If target_id is present, we assume we are on the right page (ignoring query params)
-                    if target_id and target_id not in current_url:
-                        logger.warning(f"Attempt {i+1}/{max_retries}: Current URL {current_url} does not match target {url}. Re-navigating...")
+                    
+                    # 1. Check if we are on the home page but want a specific notebook
+                    if "notebook/" in url and "notebook/" not in current_url:
+                        logger.warning(f"Attempt {i+1}/{max_retries}: Detected Home Page (or non-notebook page) '{current_url}' but target is '{url}'. Re-navigating...")
                         browser_instance.get(url)
-                        time.sleep(5) # Wait for load
-                    elif not target_id and url != current_url:
-                         # Fallback for non-notebook URLs
-                         logger.warning(f"Attempt {i+1}/{max_retries}: Current URL {current_url} does not match target {url}. Re-navigating...")
-                         browser_instance.get(url)
-                         time.sleep(5)
-                    else:
-                        logger.info(f"Successfully on target page: {current_url}")
-                        break
+                        time.sleep(8) # Increased wait time
+                        continue
+
+                    # 2. Check if we are on the WRONG notebook (ID mismatch)
+                    if target_id and target_id not in current_url:
+                        logger.warning(f"Attempt {i+1}/{max_retries}: ID mismatch. Current '{current_url}' vs Target '{url}'. Re-navigating...")
+                        browser_instance.get(url)
+                        time.sleep(8)
+                        continue
+
+                    # 3. Success check
+                    logger.info(f"Successfully on target page: {current_url}")
+                    break
                 else:
                     logger.error(f"Failed to navigate to {url} after {max_retries} attempts. Current URL: {browser_instance.current_url}")
 
