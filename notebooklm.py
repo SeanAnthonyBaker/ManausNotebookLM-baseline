@@ -178,7 +178,15 @@ def process_query():
 
                 # Wait for page to fully load
                 logger.info("Waiting for page to fully load...")
-                time.sleep(10)
+                time.sleep(5)
+                
+                # Check if we are on the target URL. If not (e.g. redirected to home), try navigating again.
+                # This handles cases where auth redirect drops the specific path.
+                if url not in browser_instance.current_url:
+                    logger.warning(f"Current URL {browser_instance.current_url} does not match target {url}. Re-navigating...")
+                    browser_instance.get(url)
+                    time.sleep(5)
+
                 logger.info(f"Page loaded. Current URL: {browser_instance.current_url}")
                 yield f'data: {json.dumps({"status": "browser_ready", "message": "NotebookLM interface loaded."})}\n\n'
 
