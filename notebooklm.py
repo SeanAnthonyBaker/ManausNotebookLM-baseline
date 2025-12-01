@@ -180,12 +180,28 @@ def process_query():
                 logger.info("Waiting for page to fully load...")
                 time.sleep(5)
                 
-                # Check if we are on the target URL. If not (e.g. redirected to home), try navigating again.
-                # This handles cases where auth redirect drops the specific path.
-                if url not in browser_instance.current_url:
-                    logger.warning(f"Current URL {browser_instance.current_url} does not match target {url}. Re-navigating...")
-                    browser_instance.get(url)
-                    time.sleep(5)
+                # Ensure we are on the correct page with retry logic
+                max_retries = 3
+                target_id = url.split('/')[-1] if 'notebook/' in url else ''
+                
+                for i in range(max_retries):
+                    current_url = browser_instance.current_url
+                    # Check if we are on the target URL. 
+                    # If target_id is present, we assume we are on the right page (ignoring query params)
+                    if target_id and target_id not in current_url:
+                        logger.warning(f"Attempt {i+1}/{max_retries}: Current URL {current_url} does not match target {url}. Re-navigating...")
+                        browser_instance.get(url)
+                        time.sleep(5) # Wait for load
+                    elif not target_id and url != current_url:
+                         # Fallback for non-notebook URLs
+                         logger.warning(f"Attempt {i+1}/{max_retries}: Current URL {current_url} does not match target {url}. Re-navigating...")
+                         browser_instance.get(url)
+                         time.sleep(5)
+                    else:
+                        logger.info(f"Successfully on target page: {current_url}")
+                        break
+                else:
+                    logger.error(f"Failed to navigate to {url} after {max_retries} attempts. Current URL: {browser_instance.current_url}")
 
                 logger.info(f"Page loaded. Current URL: {browser_instance.current_url}")
                 yield f'data: {json.dumps({"status": "browser_ready", "message": "NotebookLM interface loaded."})}\n\n'
