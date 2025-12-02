@@ -7,6 +7,7 @@ from flask_cors import CORS
 from models import db
 from user import user_bp
 from notebooklm import notebooklm_bp, browser_instance, browser_lock, start_browser_initialization_thread
+from grok import grok_bp
 
 # Configure logging for the application
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -20,10 +21,16 @@ if SECRET_KEY == 'a-default-insecure-secret-key-for-dev' and os.environ.get('FLA
 app.config['SECRET_KEY'] = SECRET_KEY
 
 # Enable CORS for all routes
-CORS(app)
+# In production, we assume an external proxy (like Nginx) handles CORS headers.
+# Enabling it here would cause duplicate headers (one from Flask, one from Proxy).
+if os.environ.get('FLASK_ENV') != 'production':
+    CORS(app)
+else:
+    logging.info("Production environment detected: CORS disabled in Flask (assuming external proxy handles it).")
 
 app.register_blueprint(user_bp, url_prefix='/api')
 app.register_blueprint(notebooklm_bp, url_prefix='/api')
+app.register_blueprint(grok_bp, url_prefix='/api')
 
 # Ensure the database directory exists
 db_path = os.path.join(os.path.dirname(__file__), 'database')

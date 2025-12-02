@@ -148,8 +148,8 @@ def process_query():
                 
                 browser_instance.get(url)
                 
-                # Wait for initial load
-                time.sleep(5) 
+                # Wait for initial load - reduced from fixed sleep to smart wait check below
+                # time.sleep(5) 
                 
                 current_url = browser_instance.current_url
                 logger.info(f"Current URL after navigation: {current_url}")
@@ -178,8 +178,8 @@ def process_query():
                         yield f'data: {json.dumps({"status": "login_success", "message": "Login detected. Proceeding..."})}\n\n'
 
                 # Wait for page to fully load
-                logger.info("Waiting for page to fully load...")
-                time.sleep(5)
+                # logger.info("Waiting for page to fully load...")
+                # time.sleep(5)
                 
                 # Ensure we are on the correct page with retry logic
                 max_retries = 3
@@ -265,15 +265,26 @@ def process_query():
                 end_time = time.time() + timeout
                 stream_completed = False
                 last_data_time = time.time()
-                INACTIVITY_TIMEOUT = 10
+                INACTIVITY_TIMEOUT = 6
 
                 while time.time() < end_time:
                     try:
                         current_text = response_element.text
                     except StaleElementReferenceException:
-                        response_element = browser_instance.find_elements(*RESPONSE_CONTENT_SELECTOR)[-1]
-                        current_text = response_element.text
-                        last_text = ""
+                        logger.warning("Stale element detected during streaming. Attempting to re-acquire...")
+                        try:
+                            # Give DOM a moment to settle
+                            time.sleep(0.5)
+                            elements = browser_instance.find_elements(*RESPONSE_CONTENT_SELECTOR)
+                            if elements:
+                                response_element = elements[-1]
+                                current_text = response_element.text
+                            else:
+                                logger.warning("Could not find any response elements during recovery.")
+                                current_text = last_text
+                        except Exception as e:
+                            logger.warning(f"Failed to re-acquire element or get text: {e}")
+                            current_text = last_text
 
                     if len(current_text) > len(last_text):
                         new_text = current_text[len(last_text):]
